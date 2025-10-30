@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isUserDocument(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ========================================
+    // MULTI-USER NAMESPACED STRUCTURE
+    // All user data MUST be under users/{uid}/...
+    // ========================================
+    
+    // USERS COLLECTION - User profile data
+    match /users/{uid} {
+      // Only the user can read/write their own profile
+      allow read, write: if isUserDocument(uid);
+      allow create: if isUserDocument(uid);
+      allow update: if isUserDocument(uid);
+      allow delete: if isUserDocument(uid);
+      
+      // SESSIONS SUBCOLLECTION - Chat sessions
+      // Path: users/{uid}/sessions/{sessionId}
+      match /sessions/{sessionId} {
+        allow read, write: if isUserDocument(uid);
+        allow create: if isUserDocument(uid);
+        allow update: if isUserDocument(uid);
+        allow delete: if isUserDocument(uid);
+      }
+      
+      // MOODS SUBCOLLECTION - Mood entries
+      // Path: users/{uid}/moods/{moodId}
+      match /moods/{moodId} {
+        allow read, write: if isUserDocument(uid);
+        allow create: if isUserDocument(uid);
+        allow update: if isUserDocument(uid);
+        allow delete: if isUserDocument(uid);
+      }
+      
+      // INSIGHTS SUBCOLLECTION - AI insights
+      // Path: users/{uid}/insights/{insightId}
+      match /insights/{insightId} {
+        allow read, write: if isUserDocument(uid);
+        allow create: if isUserDocument(uid);
+        allow update: if isUserDocument(uid);
+        allow delete: if isUserDocument(uid);
+      }
+      
+      // SETTINGS SUBCOLLECTION - User settings
+      // Path: users/{uid}/settings/{settingId}
+      match /settings/{settingId} {
+        allow read, write: if isUserDocument(uid);
+        allow create: if isUserDocument(uid);
+        allow update: if isUserDocument(uid);
+        allow delete: if isUserDocument(uid);
+      }
+      
+      // CHAT_MESSAGES SUBCOLLECTION - Chat history
+      // Path: users/{uid}/chat_messages/{messageId}
+      match /chat_messages/{messageId} {
+        allow read, write: if isUserDocument(uid);
+        allow create: if isUserDocument(uid);
+        allow update: if isUserDocument(uid);
+        allow delete: if isUserDocument(uid);
+      }
+      
+      // Allow nested wildcards for deep recursion during deletion
+      match /{document=**} {
+        allow read, write: if isUserDocument(uid);
+      }
+    }
+    
+    // ========================================
+    // LEGACY GLOBAL COLLECTIONS (DEPRECATED)
+    // These are kept temporarily for migration
+    // Will be removed after migration is complete
+    // ========================================
+    
+    // LEGACY: Global chat_messages (DEPRECATED - use users/{uid}/chat_messages)
+    match /chat_messages/{messageId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Prevent new writes to legacy collection
+    }
+    
+    // LEGACY: Global mood_entries (DEPRECATED - use users/{uid}/moods)
+    match /mood_entries/{entryId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Prevent new writes to legacy collection
+    }
+    
+    // LEGACY: Global insights (DEPRECATED - use users/{uid}/insights)
+    match /insights/{insightId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Prevent new writes to legacy collection
+    }
+    
+    // LEGACY: Global sessions (DEPRECATED - use users/{uid}/sessions)
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Prevent new writes to legacy collection
+    }
+    
+    // ADMIN COLLECTION (Future use)
+    // Only admin users can access admin data
+    match /admin/{document=**} {
+      allow read, write: if false; // Disabled for now - implement admin role checking later
+    }
+    
+    // VOICE SESSIONS COLLECTION
+    // Users can only read their own voice sessions
+    match /voice_sessions/{sessionId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      allow create: if false; // Only Firebase Functions can create these
+      allow update: if false; // Only Firebase Functions can update these
+      allow delete: if false; // Voice sessions should not be deleted
+    }
+    
+    // RATE LIMITS COLLECTION
+    // Users cannot directly access rate limiting data
+    match /rate_limits/{limitId} {
+      allow read: if false; // Only Firebase Functions should access this
+      allow write: if false; // Only Firebase Functions should write this
+    }
+    
+    // ANALYTICS EVENTS COLLECTION
+    // Users cannot directly access analytics data
+    match /analytics_events/{eventId} {
+      allow read: if false; // Only backend services should access this
+      allow write: if false; // Only backend services should write this
+    }
+    
+    // SECURITY LOGS COLLECTION
+    // Users cannot access security logs (admin/functions only)
+    match /security_logs/{logId} {
+      allow read: if false; // Only backend services should access this
+      allow write: if false; // Only backend services should write this
+    }
+    
+    // ANALYTICS COLLECTION (Future use)
+    // Aggregated anonymous data - no personal information
+    match /analytics/{document=**} {
+      allow read: if false; // Only backend services should access this
+      allow write: if false; // Only backend services should write this
+    }
+    
+    // DEFAULT DENY
+    // Deny access to any other collections not explicitly allowed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

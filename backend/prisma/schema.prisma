@@ -1,0 +1,285 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String?  @unique
+  name              String?
+  authProvider      String   @default("email")
+  firebaseUid       String?  @unique
+  appleId           String?  @unique
+  
+  // Subscription & Billing
+  subscriptionStatus SubscriptionStatus @default(FREE)
+  stripeCustomerId   String?
+  subscriptionId     String?
+  subscriptionEndsAt DateTime?
+  
+  // User Stats
+  streakCount        Int      @default(0)
+  totalCheckins      Int      @default(0)
+  messagesThisWeek   Int      @default(0)
+  lastActiveAt       DateTime @default(now())
+  
+  // Privacy & Preferences
+  preferences        Json?
+  timezone           String   @default("UTC")
+  language           String   @default("en")
+  
+  // Security
+  passwordHash       String?
+  emailVerified      Boolean  @default(false)
+  emailVerificationToken String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  
+  // Timestamps
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  deletedAt          DateTime?
+  
+  // Relations
+  sessions           Session[]
+  chatMessages       ChatMessage[]
+  moodEntries        MoodEntry[]
+  crisisEvents       CrisisEvent[]
+  payments           Payment[]
+  analyticsEvents    AnalyticsEvent[]
+  auditLogs          AuditLog[]
+  voiceUsageRecords  VoiceUsage[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  refreshToken String @unique
+  expiresAt DateTime
+  deviceId  String?
+  platform  String?
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  userId      String
+  role        MessageRole
+  content     String
+  sessionId   String?
+  metadata    Json?
+  
+  // AI Response metadata
+  model       String?
+  tokens      Int?
+  cost        Float?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("chat_messages")
+}
+
+model MoodEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  mood      Int      // 1-5 scale
+  tags      String[] // Array of mood tags
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("mood_entries")
+}
+
+model CrisisEvent {
+  id          String      @id @default(cuid())
+  userId      String
+  level       CrisisLevel
+  message     String
+  actionTaken String?
+  resolved    Boolean     @default(false)
+  
+  // Emergency contact info
+  emergencyContacted Boolean @default(false)
+  emergencyContactId String?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("crisis_events")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  stripePaymentId String        @unique
+  amount          Int           // Amount in cents
+  currency        String        @default("usd")
+  status          PaymentStatus
+  productId       String
+  
+  // Subscription details
+  subscriptionId  String?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  eventName  String
+  properties Json?
+  sessionId  String?
+  
+  // Device & Location
+  deviceId   String?
+  platform   String?
+  version    String?
+  ipAddress  String?
+  userAgent  String?
+  
+  createdAt  DateTime @default(now())
+  
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("analytics_events")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("audit_logs")
+}
+
+model RateLimit {
+  id        String   @id @default(cuid())
+  identifier String  // IP address or user ID
+  endpoint   String
+  count      Int      @default(1)
+  windowStart DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([identifier, endpoint])
+  @@map("rate_limits")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  conditions  Json?    // JSON conditions for enabling
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("feature_flags")
+}
+
+model SystemHealth {
+  id           String   @id @default(cuid())
+  service      String
+  status       String   // "healthy", "degraded", "down"
+  responseTime Float?   // in milliseconds
+  errorRate    Float?   // percentage
+  details      Json?
+  
+  createdAt    DateTime @default(now())
+  
+  @@map("system_health")
+}
+
+model VoiceUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  periodStart      DateTime
+  periodEnd        DateTime
+  secondsUsed      Int      @default(0)
+  sessionsStarted  Int      @default(0)
+  sessionsCompleted Int     @default(0)
+  lastSessionAt    DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, periodStart, periodEnd], name: "voice_usage_user_period_idx")
+  @@unique([userId, periodStart, periodEnd], map: "voice_usage_user_period_unique")
+  @@map("voice_usage")
+}
+
+// Enums
+enum SubscriptionStatus {
+  FREE
+  PREMIUM_MONTHLY
+  PREMIUM_YEARLY
+  TRIAL
+  CANCELLED
+  EXPIRED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum CrisisLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}

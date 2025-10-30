@@ -1,0 +1,295 @@
+version: '3.8'
+
+# Redis Cluster Configuration for UrGood Production
+# High availability setup with 3 masters and 3 replicas
+
+services:
+  # Redis Master Nodes
+  redis-master-1:
+    image: redis:7-alpine
+    container_name: urgood-redis-master-1
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7001
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    volumes:
+      - redis_master_1_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.11
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7001", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-master-2:
+    image: redis:7-alpine
+    container_name: urgood-redis-master-2
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7002
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    volumes:
+      - redis_master_2_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.12
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7002", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-master-3:
+    image: redis:7-alpine
+    container_name: urgood-redis-master-3
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7003
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    volumes:
+      - redis_master_3_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.13
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7003", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Redis Replica Nodes
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: urgood-redis-replica-1
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7004
+    ports:
+      - "7004:7004"
+      - "17004:17004"
+    volumes:
+      - redis_replica_1_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.14
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7004", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: urgood-redis-replica-2
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7005
+    ports:
+      - "7005:7005"
+      - "17005:17005"
+    volumes:
+      - redis_replica_2_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.15
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7005", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-replica-3:
+    image: redis:7-alpine
+    container_name: urgood-redis-replica-3
+    command: >
+      redis-server
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+      --masterauth ${REDIS_PASSWORD}
+      --port 7006
+    ports:
+      - "7006:7006"
+      - "17006:17006"
+    volumes:
+      - redis_replica_3_data:/data
+    networks:
+      urgood-redis-cluster:
+        ipv4_address: 172.21.0.16
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7006", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Redis Cluster Initializer
+  redis-cluster-init:
+    image: redis:7-alpine
+    container_name: urgood-redis-cluster-init
+    command: >
+      sh -c "
+        sleep 30 &&
+        redis-cli -a ${REDIS_PASSWORD} --cluster create
+        172.21.0.11:7001
+        172.21.0.12:7002
+        172.21.0.13:7003
+        172.21.0.14:7004
+        172.21.0.15:7005
+        172.21.0.16:7006
+        --cluster-replicas 1
+        --cluster-yes
+      "
+    depends_on:
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+      - redis-replica-1
+      - redis-replica-2
+      - redis-replica-3
+    networks:
+      - urgood-redis-cluster
+
+  # Redis Cluster Monitor
+  redis-monitor:
+    image: redis:7-alpine
+    container_name: urgood-redis-monitor
+    command: >
+      sh -c "
+        while true; do
+          echo '=== Redis Cluster Status ===' &&
+          redis-cli -a ${REDIS_PASSWORD} -h 172.21.0.11 -p 7001 cluster nodes &&
+          echo '=== Cluster Info ===' &&
+          redis-cli -a ${REDIS_PASSWORD} -h 172.21.0.11 -p 7001 cluster info &&
+          sleep 60
+        done
+      "
+    depends_on:
+      - redis-cluster-init
+    networks:
+      - urgood-redis-cluster
+    restart: unless-stopped
+
+  # Redis Sentinel for monitoring (alternative to cluster)
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: urgood-redis-sentinel-1
+    command: >
+      sh -c "
+        echo 'port 26379' > /tmp/sentinel.conf &&
+        echo 'sentinel monitor urgood-master 172.21.0.11 7001 2' >> /tmp/sentinel.conf &&
+        echo 'sentinel auth-pass urgood-master ${REDIS_PASSWORD}' >> /tmp/sentinel.conf &&
+        echo 'sentinel down-after-milliseconds urgood-master 5000' >> /tmp/sentinel.conf &&
+        echo 'sentinel failover-timeout urgood-master 10000' >> /tmp/sentinel.conf &&
+        echo 'sentinel parallel-syncs urgood-master 1' >> /tmp/sentinel.conf &&
+        redis-sentinel /tmp/sentinel.conf
+      "
+    ports:
+      - "26379:26379"
+    networks:
+      - urgood-redis-cluster
+    restart: unless-stopped
+    profiles:
+      - sentinel
+
+volumes:
+  redis_master_1_data:
+    driver: local
+  redis_master_2_data:
+    driver: local
+  redis_master_3_data:
+    driver: local
+  redis_replica_1_data:
+    driver: local
+  redis_replica_2_data:
+    driver: local
+  redis_replica_3_data:
+    driver: local
+
+networks:
+  urgood-redis-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
