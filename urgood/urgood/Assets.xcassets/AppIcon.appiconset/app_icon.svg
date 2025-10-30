@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="uGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFDAB9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6495ED;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- White background -->
+  <rect width="1024" height="1024" fill="white"/>
+  
+  <!-- Bubble letter U -->
+  <g fill="url(#uGradient)">
+    <!-- Left pillar -->
+    <rect x="337" y="287" width="120" height="450" rx="20" ry="20"/>
+    <!-- Right pillar -->
+    <rect x="567" y="287" width="120" height="450" rx="20" ry="20"/>
+    <!-- Bottom connector -->
+    <rect x="337" y="617" width="350" height="120" rx="20" ry="20"/>
+  </g>
+</svg>

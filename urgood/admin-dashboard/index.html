@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UrGood Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div x-data="adminDashboard()" class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="bg-gray-800 text-white w-64 flex-shrink-0">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-green-400">UrGood Admin</h1>
+                <p class="text-gray-400 text-sm">Mental Health Platform</p>
+            </div>
+            <nav class="mt-6">
+                <a @click="activeTab = 'dashboard'" 
+                   :class="activeTab === 'dashboard' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-chart-line mr-3"></i>
+                    Dashboard
+                </a>
+                <a @click="activeTab = 'users'" 
+                   :class="activeTab === 'users' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-users mr-3"></i>
+                    Users
+                </a>
+                <a @click="activeTab = 'analytics'" 
+                   :class="activeTab === 'analytics' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-chart-bar mr-3"></i>
+                    Analytics
+                </a>
+                <a @click="activeTab = 'content'" 
+                   :class="activeTab === 'content' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-comments mr-3"></i>
+                    Content Moderation
+                </a>
+                <a @click="activeTab = 'crisis'" 
+                   :class="activeTab === 'crisis' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-exclamation-triangle mr-3"></i>
+                    Crisis Management
+                </a>
+                <a @click="activeTab = 'settings'" 
+                   :class="activeTab === 'settings' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700'"
+                   class="flex items-center px-6 py-3 cursor-pointer">
+                    <i class="fas fa-cog mr-3"></i>
+                    Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-semibold text-gray-800" x-text="getTabTitle()"></h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="text" placeholder="Search..." 
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <span class="text-gray-700">Admin User</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- Dashboard Tab -->
+                <div x-show="activeTab === 'dashboard'" class="space-y-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-users text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Total Users</p>
+                                    <p class="text-2xl font-semibold text-gray-900" x-text="stats.totalUsers.toLocaleString()"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                    <i class="fas fa-comments text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Active Sessions</p>
+                                    <p class="text-2xl font-semibold text-gray-900" x-text="stats.activeSessions.toLocaleString()"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                                    <i class="fas fa-chart-line text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Daily Messages</p>
+                                    <p class="text-2xl font-semibold text-gray-900" x-text="stats.dailyMessages.toLocaleString()"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                                    <i class="fas fa-exclamation-triangle text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Crisis Alerts</p>
+                                    <p class="text-2xl font-semibold text-gray-900" x-text="stats.crisisAlerts"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">User Growth</h3>
+                            <canvas id="userGrowthChart" width="400" height="200"></canvas>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Message Volume</h3>
+                            <canvas id="messageVolumeChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div x-for="activity in recentActivity" class="flex items-center space-x-4">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-gray-900" x-text="activity.description"></p>
+                                        <p class="text-xs text-gray-500" x-text="activity.timestamp"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div x-show="activeTab === 'users'" class="space-y-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">User Management</h3>
+                                <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-plus mr-2"></i>Add User
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subscription</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr x-for="user in users" class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                                                    <i class="fas fa-user text-gray-600"></i>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900" x-text="user.name"></div>
+                                                    <div class="text-sm text-gray-500" x-text="user.email"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" 
+                                                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" x-text="user.status"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="user.subscription"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="user.lastActive"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                                            <button class="text-red-600 hover:text-red-900">Delete</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Tab -->
+                <div x-show="activeTab === 'analytics'" class="space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">User Engagement</h3>
+                            <canvas id="engagementChart" width="400" height="300"></canvas>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Feature Usage</h3>
+                            <canvas id="featureUsageChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Moderation Tab -->
+                <div x-show="activeTab === 'content'" class="space-y-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Content Moderation Queue</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div x-for="item in moderationQueue" class="border border-gray-200 rounded-lg p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-gray-900" x-text="item.type"></p>
+                                            <p class="text-sm text-gray-500" x-text="item.content"></p>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button class="bg-green-600 text-white px-3 py-1 rounded text-sm">Approve</button>
+                                            <button class="bg-red-600 text-white px-3 py-1 rounded text-sm">Reject</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crisis Management Tab -->
+                <div x-show="activeTab === 'crisis'" class="space-y-6">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl mr-3"></i>
+                            <h3 class="text-lg font-semibold text-red-800">Crisis Alerts</h3>
+                        </div>
+                        <p class="text-red-700 mt-2">Monitor and respond to crisis situations in real-time.</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Active Crisis Cases</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div x-for="crisis in crisisCases" class="border border-red-200 rounded-lg p-4 bg-red-50">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-medium text-red-900" x-text="crisis.severity"></p>
+                                            <p class="text-sm text-red-700" x-text="crisis.description"></p>
+                                            <p class="text-xs text-red-600" x-text="crisis.timestamp"></p>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button class="bg-red-600 text-white px-3 py-1 rounded text-sm">Escalate</button>
+                                            <button class="bg-green-600 text-white px-3 py-1 rounded text-sm">Resolve</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div x-show="activeTab === 'settings'" class="space-y-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">System Settings</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm font-medium text-gray-700">Enable Crisis Detection</label>
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-green-600">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm font-medium text-gray-700">Auto-moderation</label>
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-green-600">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm font-medium text-gray-700">Email Notifications</label>
+                                <input type="checkbox" class="form-checkbox h-4 w-4 text-green-600">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function adminDashboard() {
+            return {
+                activeTab: 'dashboard',
+                stats: {
+                    totalUsers: 1247,
+                    activeSessions: 89,
+                    dailyMessages: 342,
+                    crisisAlerts: 3
+                },
+                users: [
+                    { name: 'John Doe', email: 'john@example.com', status: 'active', subscription: 'Premium', lastActive: '2 hours ago' },
+                    { name: 'Jane Smith', email: 'jane@example.com', status: 'active', subscription: 'Free', lastActive: '1 day ago' },
+                    { name: 'Bob Johnson', email: 'bob@example.com', status: 'inactive', subscription: 'Premium', lastActive: '1 week ago' }
+                ],
+                recentActivity: [
+                    { description: 'New user registered: Sarah Wilson', timestamp: '2 minutes ago' },
+                    { description: 'Crisis alert resolved: Case #1234', timestamp: '15 minutes ago' },
+                    { description: 'System backup completed', timestamp: '1 hour ago' },
+                    { description: 'New subscription: Premium plan', timestamp: '2 hours ago' }
+                ],
+                moderationQueue: [
+                    { type: 'Inappropriate Content', content: 'Message flagged for review...' },
+                    { type: 'Spam', content: 'Suspicious message pattern...' }
+                ],
+                crisisCases: [
+                    { severity: 'High', description: 'User expressing suicidal thoughts', timestamp: '30 minutes ago' },
+                    { severity: 'Medium', description: 'User showing signs of depression', timestamp: '1 hour ago' }
+                ],
+                
+                getTabTitle() {
+                    const titles = {
+                        dashboard: 'Dashboard',
+                        users: 'User Management',
+                        analytics: 'Analytics',
+                        content: 'Content Moderation',
+                        crisis: 'Crisis Management',
+                        settings: 'Settings'
+                    };
+                    return titles[this.activeTab] || 'Dashboard';
+                },
+                
+                init() {
+                    this.initializeCharts();
+                },
+                
+                initializeCharts() {
+                    // User Growth Chart
+                    const userGrowthCtx = document.getElementById('userGrowthChart');
+                    if (userGrowthCtx) {
+                        new Chart(userGrowthCtx, {
+                            type: 'line',
+                            data: {
+                                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                                datasets: [{
+                                    label: 'New Users',
+                                    data: [65, 78, 90, 120, 150, 180],
+                                    borderColor: 'rgb(34, 197, 94)',
+                                    tension: 0.1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false
+                            }
+                        });
+                    }
+                    
+                    // Message Volume Chart
+                    const messageVolumeCtx = document.getElementById('messageVolumeChart');
+                    if (messageVolumeCtx) {
+                        new Chart(messageVolumeCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                datasets: [{
+                                    label: 'Messages',
+                                    data: [120, 190, 300, 500, 200, 300, 450],
+                                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                    borderColor: 'rgb(34, 197, 94)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

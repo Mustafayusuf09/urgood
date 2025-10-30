@@ -1,0 +1,20 @@
+# Xcode
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
+build/
+
+# API Keys and Secrets
+**/SecureConfig.swift
+Secrets.xcconfig
+*.pem
+*.p12
+.env
+.env.local
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
