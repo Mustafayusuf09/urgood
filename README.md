@@ -307,7 +307,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [Wiki](https://github.com/yourusername/urgood/wiki)
 - **Issues**: [GitHub Issues](https://github.com/yourusername/urgood/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/urgood/discussions)
-- **Email**: support@urgood.app
+- **Email**: hello@urgood.app
 
 ---
 
