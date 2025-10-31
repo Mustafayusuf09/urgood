@@ -87,7 +87,6 @@ class MultiUserInsightsViewModel: ObservableObject {
                     self.updateMetrics()
                 }
             } catch {
-                print("❌ Failed to load data: \(error.localizedDescription)")
                 toast = ToastData(message: "Failed to load data", type: .error)
             }
         }
@@ -130,7 +129,6 @@ class MultiUserInsightsViewModel: ObservableObject {
                 
                 toast = ToastData(message: "Mood logged! 🔥", type: .success)
             } catch {
-                print("❌ Failed to save mood: \(error.localizedDescription)")
                 toast = ToastData(message: "Failed to save mood", type: .error)
             }
         }
@@ -143,7 +141,9 @@ class MultiUserInsightsViewModel: ObservableObject {
         let today = calendar.startOfDay(for: Date())
         
         return (0..<7).compactMap { offset in
-            let date = calendar.date(byAdding: .day, value: -offset, to: today)!
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else {
+                return nil
+            }
             let dayMoods = moods.filter { mood in
                 calendar.startOfDay(for: mood.date) == date
             }
@@ -201,24 +201,22 @@ extension MultiUserInsightsViewModel {
     /// }
     /// ```
     static func exampleUsage() {
-        print("""
-        MIGRATION CHECKLIST FOR VIEWMODELS:
-        
-        ✅ Replace LocalStore dependency with user-scoped repositories
-        ✅ Inject repositories from AppSession in View's init
-        ✅ Use repository methods (fetchSessions, saveMoodEntry, etc.)
-        ✅ Observe repository @Published properties for real-time updates
-        ✅ Handle async/await for repository operations
-        ✅ Show loading states and error messages
-        ✅ Remove direct Firestore or global collection access
-        ✅ Test with Demo Switcher to verify data isolation
-        
-        NOTES:
-        - ViewModels are now truly user-scoped (recreated on user change)
-        - No manual listener cleanup needed (handled by repositories)
-        - Type-safe data access (no raw Firestore documents)
-        - Automatic migration ensures backward compatibility
-        """)
+        // MIGRATION CHECKLIST FOR VIEWMODELS:
+        //
+        // ✅ Replace LocalStore dependency with user-scoped repositories
+        // ✅ Inject repositories from AppSession in View's init
+        // ✅ Use repository methods (fetchSessions, saveMoodEntry, etc.)
+        // ✅ Observe repository @Published properties for real-time updates
+        // ✅ Handle async/await for repository operations
+        // ✅ Show loading states and error messages
+        // ✅ Remove direct Firestore or global collection access
+        // ✅ Test with Demo Switcher to verify data isolation
+        //
+        // NOTES:
+        // - ViewModels are now truly user-scoped (recreated on user change)
+        // - No manual listener cleanup needed (handled by repositories)
+        // - Type-safe data access (no raw Firestore documents)
+        // - Automatic migration ensures backward compatibility
     }
 }
 

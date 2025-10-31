@@ -179,6 +179,8 @@ final class UnifiedAuthService: ObservableObject {
     }
     
     private func handleUserSignIn(user: FirebaseAuth.User) async {
+        // Immediately mark as authenticated so UI can transition, even if profile ops fail
+        isAuthenticated = true
         do {
             // Try to load existing profile
             let profileDoc = try await db.collection("users").document(user.uid).getDocument()
@@ -210,11 +212,13 @@ final class UnifiedAuthService: ObservableObject {
             // Configure RevenueCat for this user
             await configureRevenueCat(uid: user.uid)
             
-            isAuthenticated = true
+            // isAuthenticated already true; keep it true regardless of profile result
             
         } catch {
             log.error("❌ Failed to load/create user profile: \(error.localizedDescription)")
             errorMessage = "Failed to load user profile: \(error.localizedDescription)"
+            // Do not block navigation on profile errors; user is signed in
+            isAuthenticated = true
         }
     }
     

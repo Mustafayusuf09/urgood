@@ -68,7 +68,8 @@ struct SafeContentView: View {
     
     private var mainContent: some View {
         Group {
-            if container.authService.isAuthenticated {
+            // Use unified auth service for consistent navigation after login
+            if container.unifiedAuthService.isAuthenticated {
                 // Main app content
                 MainAppView(container: container, router: router)
             } else {
@@ -91,13 +92,8 @@ struct SafeContentView: View {
                 try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                 
                 // Proceed regardless of auth state; routing below will handle auth vs main app
-                print("✅ App initialized successfully")
-                print("   - Auth: \(container.authService.isAuthenticated)")
-                print("   - First Run: \(container.localStore.hasCompletedFirstRun)")
-
                 isInitialized = true
             } catch {
-                print("❌ Initialization error: \(error.localizedDescription)")
                 initError = error.localizedDescription
             }
         }

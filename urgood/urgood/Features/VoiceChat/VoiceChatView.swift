@@ -8,7 +8,8 @@ struct VoiceChatView: View {
     
     var body: some View {
         ZStack {
-            background
+            Color.background
+                .ignoresSafeArea()
             
             VStack(spacing: 32) {
                 statusHeader
@@ -20,7 +21,7 @@ struct VoiceChatView: View {
             .padding(.bottom, 120)
         }
         .onAppear {
-            Task { await voiceChatService.startVoiceChat() }
+            // Initialize pulse animation only, don't auto-start voice chat
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 pulse = true
             }
@@ -52,26 +53,45 @@ struct VoiceChatView: View {
             VStack(spacing: 12) {
             Text("Hey there! 👋")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(Color.textPrimary)
             
             Text("Ready to chat with UrGood (\"your good\")?")
                 .font(.system(size: 18, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(Color.textSecondary)
                 .multilineTextAlignment(.center)
             
-            if !voiceChatService.statusMessage.isEmpty {
-                Text(voiceChatService.statusMessage)
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-            }
-            
-            if let error = voiceChatService.error {
-                Text(error)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(.brandAccent)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+            // Only show status message when active or when there's an error
+            if voiceChatService.isActive || voiceChatService.error != nil {
+                if !voiceChatService.statusMessage.isEmpty {
+                    Text(voiceChatService.statusMessage)
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundColor(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                if let error = voiceChatService.error {
+                    Text(error)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(Color.brandSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
+                
+                // Manual commit button
+                if voiceChatService.isListening {
+                    Button("Done Speaking") {
+                        voiceChatService.manualCommit()
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(25)
+                    .padding(.bottom, 20)
+                }
+                
+                micControl
+                    .padding(.bottom, 80)
             }
         }
         .frame(maxWidth: .infinity)
@@ -89,15 +109,15 @@ struct VoiceChatView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.12))
                     .frame(width: 220, height: 220)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                            .stroke(Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.25), lineWidth: 2)
                     )
                 
                 Circle()
-                    .stroke(Color.brandElectric.opacity(0.6), lineWidth: 12)
+                    .stroke(Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.8), lineWidth: 12)
                     .frame(width: 200, height: 200)
                     .scaleEffect(voiceChatService.isListening ? 1.2 : 1.0)
                     .opacity(pulse ? 1 : 0.4)
@@ -105,38 +125,13 @@ struct VoiceChatView: View {
                 
                 Image(systemName: voiceChatService.isActive ? (voiceChatService.isListening ? "mic.fill" : "waveform") : "play.fill")
                     .font(.system(size: 52, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(red: 1.0, green: 0.73, blue: 0.59))
             }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(voiceChatService.isActive ? "Toggle listening" : "Start voice chat")
     }
     
-    
-    private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.07, green: 0.09, blue: 0.20),
-                Color(red: 0.14, green: 0.07, blue: 0.25),
-                Color(red: 0.03, green: 0.06, blue: 0.15)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .overlay(
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color.brandElectric.opacity(0.35),
-                    Color.clear
-                ]),
-                center: .center,
-                startRadius: 20,
-                endRadius: 350
-            )
-            .blendMode(.plusLighter)
-        )
-    }
 }
 
 #Preview {

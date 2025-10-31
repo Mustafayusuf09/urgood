@@ -30,13 +30,27 @@ struct EnvironmentConfig {
     
     /// Main backend API URL
     static var backendURL: String {
-        if let customURL = ProcessInfo.processInfo.environment["URGOOD_BACKEND_URL"] {
+        if let customURL = ProcessInfo.processInfo.environment["URGOOD_BACKEND_URL"],
+           !customURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return customURL
         }
-        
-        return isProduction 
-            ? "https://api.urgood.app"
-            : "http://localhost:3001"
+
+        if let secretsURL = SecretsResolver.value(for: "BACKEND_BASE_URL", placeholders: ["your-", "YOUR_", "placeholder"]),
+           !secretsURL.isEmpty {
+            return secretsURL
+        }
+
+        if isProduction {
+            return "https://api.urgood.app"
+        }
+
+        // When running a debug build on a physical device, "localhost" resolves to the device itself.
+        // Fall back to the production API unless a custom override is supplied so end users stay connected.
+        if !isSimulator {
+            return "https://api.urgood.app"
+        }
+
+        return "http://localhost:3001"
     }
     
     /// WebSocket URL for real-time features

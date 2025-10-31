@@ -188,8 +188,13 @@ class ChatService {
     // MARK: - Rate Limiting
     
     func canSendMessage() -> Bool {
+        #if DEBUG
+        // Development bypass - unlimited messages for testing
+        return true
+        #else
         let dailyCount = getDailyMessageCount()
         return dailyCount < APIConfig.dailyMessageLimit
+        #endif
     }
     
     func getRemainingMessages() -> Int {

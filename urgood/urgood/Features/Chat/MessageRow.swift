@@ -165,8 +165,8 @@ struct SuggestedToolCard: View {
                 durationMin: 2,
                 summary: "Calm your nervous system"
             ),
-            onTryNow: { print("Try now tapped") },
-            onDismiss: { print("Dismiss tapped") }
+            onTryNow: { },
+            onDismiss: { }
         )
     }
     .themeEnvironment()

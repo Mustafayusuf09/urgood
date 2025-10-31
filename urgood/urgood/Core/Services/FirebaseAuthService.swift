@@ -53,10 +53,10 @@ final class FirebaseAuthService: ObservableObject {
                 case "password":
                     self.authProvider = .email
                 default:
-                    self.authProvider = .anonymous
+                    self.authProvider = .email
                 }
             } else {
-                self.authProvider = .anonymous
+                self.authProvider = .email
             }
         }
 
@@ -82,7 +82,6 @@ final class FirebaseAuthService: ObservableObject {
     enum AuthProvider: String, CaseIterable {
         case apple = "apple.com"
         case email = "password"
-        case anonymous = "anonymous"
     }
     
     init() {

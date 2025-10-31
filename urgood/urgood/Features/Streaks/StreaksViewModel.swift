@@ -151,18 +151,14 @@ class StreaksViewModel: ObservableObject {
     
     func toggleNotifications() {
         // In a real app, this would request notification permissions
-        print("Toggle notifications")
     }
     
     func openDataPrivacy() {
         // In a real app, this would open a data privacy view
-        print("Open data privacy")
     }
     
     func signOut() async {
-        // Sign out the user using the authentication service
         try? await authService.signOut()
-        print("User signed out successfully")
     }
 }
 

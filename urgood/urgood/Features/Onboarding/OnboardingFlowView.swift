@@ -693,7 +693,6 @@ struct PrivacyPromiseScreen: View {
             // Data & Privacy Link
             Button(action: {
                 // In a real app, this would open data privacy settings
-                print("Open data privacy settings")
             }) {
                 HStack(spacing: Spacing.sm) {
                     Text("Data & Privacy Settings")

@@ -37,7 +37,6 @@ final class StandaloneAuthService: ObservableObject, AuthServiceProtocol {
     enum AuthProvider: String, CaseIterable {
         case apple = "apple.com"
         case email = "password"
-        case anonymous = "anonymous"
     }
     
     init() {

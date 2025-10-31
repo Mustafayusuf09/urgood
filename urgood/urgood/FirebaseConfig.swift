@@ -8,24 +8,20 @@ struct FirebaseConfig {
         if FirebaseApp.app() == nil {
             FirebaseApp.configure()
         }
-        print("🔥 Firebase configured successfully")
     }
     
     // MARK: - Analytics Helpers
     
     static func logEvent(_ name: String, parameters: [String: Any]? = nil) {
         Analytics.logEvent(name, parameters: parameters)
-        print("📊 [Firebase] Event: \(name)")
     }
     
     static func setUserProperty(_ value: String?, forName name: String) {
         Analytics.setUserProperty(value, forName: name)
-        print("📊 [Firebase] User Property: \(name) = \(value ?? "nil")")
     }
     
     static func setUserId(_ userId: String?) {
         Analytics.setUserID(userId)
-        print("📊 [Firebase] User ID: \(userId ?? "nil")")
     }
     
     // MARK: - Error Tracking Helpers
@@ -35,12 +31,10 @@ struct FirebaseConfig {
             "message": message,
             "timestamp": Date().timeIntervalSince1970
         ])
-        print("📊 [Firebase] Log: \(message)")
     }
     
     static func setCustomValue(_ value: Any, forKey key: String) {
         Analytics.setUserProperty(String(describing: value), forName: key)
-        print("📊 [Firebase] Custom Value: \(key) = \(value)")
     }
     
     static func recordError(_ error: Error) {
@@ -50,6 +44,5 @@ struct FirebaseConfig {
             "error_description": error.localizedDescription,
             "timestamp": Date().timeIntervalSince1970
         ])
-        print("📊 [Firebase] Error: \(error.localizedDescription)")
     }
 }

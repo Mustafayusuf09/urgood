@@ -285,7 +285,6 @@ struct LegalDocumentView: View {
 
 #Preview {
     LegalComplianceView {
-        print("Legal compliance completed")
     }
     .themeEnvironment()
 }

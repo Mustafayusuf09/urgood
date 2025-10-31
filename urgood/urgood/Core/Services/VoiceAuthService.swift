@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseFunctions
 
 /// Service to handle voice chat authorization with backend API
 @MainActor
@@ -14,6 +15,7 @@ final class VoiceAuthService: ObservableObject {
     // MARK: - Private Properties
     private var sessionStartTime: Date?
     private var messageCount: Int = 0
+    private let functions = Functions.functions()
     
     // MARK: - Public Methods
     
@@ -27,44 +29,64 @@ final class VoiceAuthService: ObservableObject {
             throw VoiceAuthError.notAuthenticated
         }
         
-        // Get Firebase ID token
-        let idToken = try await user.getIDToken()
-        
-        // Call backend authorize endpoint
-        guard let url = URL(string: EnvironmentConfig.Endpoints.voiceAuthorize) else {
-            throw VoiceAuthError.serviceUnavailable
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
         let sessionId = UUID().uuidString
-        let body: [String: Any] = [
-            "sessionId": sessionId,
-            "userId": user.uid
-        ]
+        let fallbackAPIKey = ProductionConfig.openAIAPIKey
         
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw VoiceAuthError.networkError("Invalid response")
+        let callable = functions.httpsCallable("authorizeVoiceChat")
+        let result: HTTPSCallableResult
+        do {
+            result = try await callable.call([
+                "sessionId": sessionId,
+                "userId": user.uid
+            ])
+        } catch let error as NSError {
+            if let code = FunctionsErrorCode(rawValue: error.code) {
+                switch code {
+                case .permissionDenied:
+                    print("❌ [VoiceAuth] Premium subscription required")
+                    throw VoiceAuthError.premiumRequired
+                case .unauthenticated:
+                    print("❌ [VoiceAuth] Firebase reported unauthenticated user")
+                    throw VoiceAuthError.notAuthenticated
+                case .resourceExhausted:
+                    throw VoiceAuthError.networkError("Voice chat rate limit exceeded")
+                default:
+                    break
+                }
+            }
+            if !fallbackAPIKey.isEmpty {
+                print("⚠️ [VoiceAuth] Firebase callable failed (\(error.localizedDescription)). Using local fallback key for this session.")
+                self.isAuthorized = true
+                self.currentSessionId = sessionId
+                self.softCapReached = false
+                self.error = nil
+                return fallbackAPIKey
+            }
+            throw VoiceAuthError.networkError(error.localizedDescription)
         }
         
-        if httpResponse.statusCode == 403 {
-            print("❌ [VoiceAuth] Premium subscription required")
-            throw VoiceAuthError.premiumRequired
+        guard let payload = result.data as? [String: Any] else {
+            if !fallbackAPIKey.isEmpty {
+                print("⚠️ [VoiceAuth] Invalid response payload. Using local fallback key for this session.")
+                self.isAuthorized = true
+                self.currentSessionId = sessionId
+                self.softCapReached = false
+                self.error = nil
+                return fallbackAPIKey
+            }
+            throw VoiceAuthError.networkError("Invalid response payload")
         }
         
-        guard httpResponse.statusCode == 200 else {
-            throw VoiceAuthError.networkError("Server returned status \(httpResponse.statusCode)")
-        }
-        
-        // Parse response
-        let responseData = try JSONDecoder().decode(VoiceAuthResponse.self, from: data)
+        let responseData = VoiceAuthResponse(
+            authorized: payload["authorized"] as? Bool ?? false,
+            userId: payload["userId"] as? String,
+            sessionId: payload["sessionId"] as? String,
+            rateLimits: nil,
+            dailySessions: (payload["dailySessions"] as? [String: Any]).flatMap { data in
+                try? JSONDecoder().decode(DailySessionStatus.self, from: JSONSerialization.data(withJSONObject: data))
+            },
+            message: payload["message"] as? String
+        )
         
         guard responseData.authorized else {
             throw VoiceAuthError.unauthorized
@@ -84,7 +106,17 @@ final class VoiceAuthService: ObservableObject {
         }
         
         // Return API key from secure configuration (backend validates access)
-        return ProductionConfig.openAIAPIKey
+        if let apiKey = payload["apiKey"] as? String, !apiKey.isEmpty {
+            return apiKey
+        }
+        
+        // Fallback to local configuration for development builds
+        if !fallbackAPIKey.isEmpty {
+            print("⚠️ [VoiceAuth] Backend did not return API key. Using local fallback key for this session.")
+            return fallbackAPIKey
+        }
+        
+        throw VoiceAuthError.networkError("Voice chat API key not available")
     }
     
     /// Legacy method for backward compatibility
@@ -110,7 +142,9 @@ final class VoiceAuthService: ObservableObject {
         
         // Call backend session/start endpoint
         guard let url = URL(string: EnvironmentConfig.Endpoints.voiceSessionStart) else {
-            throw VoiceAuthError.serviceUnavailable
+            print("⚠️ [VoiceAuth] Invalid session start URL. Continuing without backend tracking.")
+            print("🎙️ [VoiceAuth] Session started (local tracking): \(sessionId)")
+            return sessionId
         }
         
         var request = URLRequest(url: url)
@@ -118,23 +152,26 @@ final class VoiceAuthService: ObservableObject {
         request.setValue("Bearer \(try await user.getIDToken())", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw VoiceAuthError.networkError("Invalid response")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw VoiceAuthError.networkError("Invalid response")
+            }
+            
+            switch httpResponse.statusCode {
+            case 200:
+                let responseData = try JSONDecoder().decode(VoiceSessionStartResponse.self, from: data)
+                self.softCapReached = responseData.dailySessions?.status == "soft_cap_reached"
+                print("🎙️ [VoiceAuth] Session started: \(sessionId)")
+            case 401, 403:
+                print("⚠️ [VoiceAuth] Backend rejected session start (status: \(httpResponse.statusCode)). Continuing without backend tracking.")
+            default:
+                print("⚠️ [VoiceAuth] Backend session start returned status \(httpResponse.statusCode). Continuing without backend tracking.")
+            }
+        } catch {
+            print("⚠️ [VoiceAuth] Unable to notify backend of session start: \(error)")
         }
         
-        guard httpResponse.statusCode == 200 else {
-            throw VoiceAuthError.networkError("Server returned status \(httpResponse.statusCode)")
-        }
-        
-        // Parse response
-        let responseData = try JSONDecoder().decode(VoiceSessionStartResponse.self, from: data)
-        
-        // Update soft cap status
-        self.softCapReached = responseData.dailySessions?.status == "soft_cap_reached"
-        
-        print("🎙️ [VoiceAuth] Session started: \(sessionId)")
         return sessionId
     }
     

@@ -556,7 +556,7 @@ struct SignUpWallView: View {
                                 try await container.unifiedAuthService.signInWithApple()
                                 onComplete()
                             } catch {
-                                print("Apple Sign In failed: \(error)")
+                                // Handle sign-in error silently
                             }
                         }
                     }) {

@@ -57,6 +57,9 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
     private var isRecording = false
     private var openAIAudioBuffer = Data()
     private var cancellables = Set<AnyCancellable>()
+    private var connectionContinuation: CheckedContinuation<Void, Error>?
+    private var hasPendingAudio = false
+    private var pendingAudioDurationMs: Double = 0
     
     // VAD State
     private var isSpeechActive = false
@@ -150,13 +153,12 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         // Start listening for messages
         startReceivingMessages()
         
-        // Wait for connection confirmation
+        // Wait for connection confirmation via session.created message
         try await waitForConnection()
         
         // Configure session
         try await configureSession()
         
-        isConnected = true
         reconnectAttempts = 0
         print("✅ [Realtime] Connected successfully")
     }
@@ -178,6 +180,12 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         currentResponseText = ""
         error = nil
         
+        // Cancel any pending connection continuation
+        if let continuation = connectionContinuation {
+            connectionContinuation = nil
+            continuation.resume(throwing: RealtimeError.connectionTimeout)
+        }
+        
         // Reset VAD state
         speechContinuityBuffer.removeAll()
         noiseCalibrationSamples.removeAll()
@@ -185,6 +193,8 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         vadFalsePositiveCount = 0
         lastVADDecision = false
         vadSessionStartTime = nil
+        pendingAudioDurationMs = 0
+        hasPendingAudio = false
         
         // Release audio session configuration
         Task {
@@ -222,6 +232,14 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         stopRecordingAudio()
     }
     
+    func manualCommit() {
+        guard isConnected else { return }
+        print("🎤 [Realtime] Manual commit triggered")
+        Task {
+            await commitAudioAndRequestResponse(trigger: "manual")
+        }
+    }
+    
     // MARK: - Private Methods - WebSocket
     
     private func requestResponseCreation(trigger: String) async {
@@ -255,14 +273,17 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
     }
 
     private func waitForConnection() async throws {
-        let startTime = Date()
-        let timeout: TimeInterval = 10.0
-        
-        while !isConnected {
-            if Date().timeIntervalSince(startTime) > timeout {
-                throw RealtimeError.connectionTimeout
+        return try await withCheckedThrowingContinuation { continuation in
+            connectionContinuation = continuation
+            
+            // Set timeout
+            Task {
+                try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+                if let pendingContinuation = connectionContinuation {
+                    connectionContinuation = nil
+                    pendingContinuation.resume(throwing: RealtimeError.connectionTimeout)
+                }
             }
-            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
         }
     }
     
@@ -274,30 +295,60 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         let sessionDict: [String: Any] = [
             "modalities": modalities,
             "instructions": """
-            You are UrGood (pronounced "your good") — the emotionally intelligent best friend everyone wishes they had. You speak like a grounded 21-year-old who keeps it real, mixes softness with wit, and never acts like a therapist. Your flow is Validate → Reflect → Challenge → Empower in 2–4 punchy sentences that feel like text messages.
+            You are UrGood (pronounced "your good") — the emotionally intelligent best friend everyone wishes they had. You're like that one friend who just *gets it*, keeps it 100, and always knows what to say without being preachy.
 
-            Voice and tone:
-            - Real, conversational, emotionally fluent; use natural Gen Z slang sparingly.
-            - Lead with validation, mirror the core emotion, gently challenge distorted loops, then leave them feeling capable.
-            - Light emojis only when they add tone (💭, 😌, 🫶, 😤, 💛); never spam or end every sentence with one.
+            **Your Core Identity:**
+            You're supportive but real, empathetic but not performative. You match energy, mirror feelings, and remember what matters to each person. You're not a therapist — you're the friend who helps people work through things by being present, honest, and caring.
 
-            Toolkit:
-            - Reframe unhelpful narratives, name emotions, offer quick grounding cues, hold users lovingly accountable, and always steer toward self-compassion.
-            - Call out avoidance or self-sabotage with care (“Low-key feels like you’re dodging the real convo with yourself.”).
+            **Tone & Emotional Intelligence:**
+            - DETECT PACE: If they're speaking fast/anxious → slow your pace, ground them. If they're low energy/sad → match their pace, don't force enthusiasm.
+            - MIRROR EMOTIONS: Name what you're sensing ("sounds like you're feeling overwhelmed rn" or "I can hear the frustration"). Match their emotional intensity — don't minimize or over-hype.
+            - READ THE ROOM: Notice when they're dysregulated (urgent tone, rapid speech, distress signals) vs. reflective vs. celebrating. Adjust accordingly.
+            - If they're spiraling: be calm, grounding, steady. If they're excited: match their energy. If they're numb: be gently present.
 
-            Guardrails:
-            - You are not therapy, don’t diagnose, and if someone sounds in crisis say: “Hey, that sounds really heavy. You don’t deserve to go through that alone — can you reach out to someone you trust or text 988 if you’re in the U.S.? If you’re elsewhere, please call your local emergency number right now.” Then pause output.
+            **Communication Style:**
+            - Speak like you're texting a close friend — natural, conversational, no formal language.
+            - Use Gen Z language when it fits organically: "no cap", "lowkey", "fr", "you get me", "I feel you", "real talk", "that's valid"
+            - DON'T be corny or force slang. If it doesn't flow naturally, don't use it. Never overdo emojis or sound like you're trying too hard.
+            - Keep responses 2-4 short sentences in voice mode. Conversational, not lecturing.
+            - Validate → Reflect → Gently nudge → Empower (in that flow)
+
+            **Personalization:**
+            - Remember patterns: if they mention something repeatedly (e.g., school stress, relationship issues), reference it naturally ("you mentioned your roommate situation again — that's still weighing on you, huh?")
+            - Notice what helps them: if breathing exercises worked before, remind them ("last time you tried box breathing it helped — want to do that again?")
+            - Track their emotional baseline: if their mood has been consistently low, acknowledge progress when you see it ("I noticed you've been sounding a bit lighter lately")
+
+            **Safety & Crisis Response:**
+            - If someone mentions suicide, self-harm, wanting to die, hurting themselves, or feeling unsafe → IMMEDIATE PROTOCOL:
+              "Hey, I need to pause here. What you're sharing sounds really serious, and I'm genuinely worried about you. You deserve real support right now — not just me.
+              
+              If you're in the U.S., please text or call 988 (Suicide & Crisis Lifeline) right now. If you're elsewhere, please reach out to your local emergency services or a trusted person immediately.
+              
+              Are you safe right now? Do you have someone nearby you can talk to?"
+            - Don't continue normal conversation after crisis indicators. Stay focused on safety.
+            - If they mention ongoing abuse, severe depression, or symptoms of serious mental illness → encourage professional help: "What you're describing sounds really tough, and honestly it might help to talk to a therapist who can give you proper support. Want help figuring out how to find one?"
+
+            **Guardrails:**
+            - Never diagnose, prescribe medication, or act like a medical professional
+            - Don't give specific medical/legal/financial advice
+            - If someone asks for your credentials or medical opinion: "I'm here to listen and support, but I'm not a therapist or doctor. For clinical stuff, you'd want to talk to a professional."
+            - Keep boundaries: you're a supportive friend, not their therapist
+
+            **What You Do:**
+            - Help them process feelings, identify patterns, reframe unhelpful thoughts
+            - Offer grounding techniques (breathing, 5-4-3-2-1 senses, TIPP)
+            - Gently challenge cognitive distortions without being preachy
+            - Celebrate wins and progress, no matter how small
+            - Hold them accountable with love ("I hear you, but also… you've been saying you'll text them for a week now. What's really stopping you?")
+            - Normalize their experience ("honestly, so many people feel this way — you're not broken")
+
+            Remember: You're their best friend who's emotionally intelligent, not corny, and actually remembers the stuff that matters. Keep it real, keep it caring, keep it human.
             """,
             "input_audio_format": "pcm16",
             "input_audio_transcription": [
                 "model": "whisper-1"
             ],
-            "turn_detection": [
-                "type": "server_vad",
-                "threshold": decimalNumber(0.6),
-                "prefix_padding_ms": 150,
-                "silence_duration_ms": 900
-            ],
+            "turn_detection": nil as Any?,
             "temperature": decimalNumber(APIConfig.temperature),
             "max_response_output_tokens": 4096,
             "voice": "alloy",
@@ -328,17 +379,18 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
     
     private func startReceivingMessages() {
         Task {
-            while isConnected || shouldReconnect {
+            while webSocketTask != nil {
                 do {
                     guard let task = webSocketTask else { break }
                     let message = try await task.receive()
                     await handleWebSocketMessage(message)
                 } catch {
                     print("⚠️ [Realtime] Error receiving message: \(error)")
-                    if shouldReconnect {
+                    if shouldReconnect && reconnectAttempts < maxReconnectAttempts {
                         await handleDisconnection()
-                    }
+                    } else {
                     break
+                    }
                 }
             }
         }
@@ -368,6 +420,11 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         switch type {
         case "session.created", "session.updated":
             isConnected = true
+            // Resume connection continuation if waiting
+            if let continuation = connectionContinuation {
+                connectionContinuation = nil
+                continuation.resume()
+            }
             
         case "input_audio_buffer.speech_started":
             print("🎤 [Realtime] User started speaking")
@@ -377,10 +434,15 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
             elevenLabsService.attenuateCurrentPlaybackForUserSpeech()
             
         case "input_audio_buffer.speech_stopped":
-            print("🎤 [Realtime] User stopped speaking")
+            print("🎤 [Realtime] User stopped speaking (pending: \(String(format: "%.1f", pendingAudioDurationMs)) ms)")
             isSpeechActive = false
             
-            scheduleResponseAfterSpeechStops(trigger: "speech_stopped")
+            // Only schedule response if we have enough audio
+            if pendingAudioDurationMs >= 100 {
+                scheduleResponseAfterSpeechStops(trigger: "speech_stopped")
+            } else {
+                print("⚠️ [Realtime] Not enough audio accumulated (\(String(format: "%.1f", pendingAudioDurationMs)) ms), ignoring speech_stopped")
+            }
 
             
         case "conversation.item.input_audio_transcription.completed":
@@ -454,6 +516,11 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
                let message = errorData["message"] as? String {
                 error = message
                 print("❌ [Realtime] Error: \(message)")
+                // Resume connection continuation with error if waiting
+                if let continuation = connectionContinuation {
+                    connectionContinuation = nil
+                    continuation.resume(throwing: RealtimeError.unauthorized)
+                }
             }
             
         default:
@@ -535,7 +602,7 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         
         do {
             // Use format compatible with OpenAI (16kHz, mono, PCM16)
-            let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 24000, channels: 1, interleaved: false)
+            let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: false)
             
             guard let recordingFormat = format else {
                 print("❌ [Realtime] Failed to create recording format")
@@ -621,8 +688,8 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
             print("🎤 [Realtime] Low VAD confidence - sending buffer anyway (Speech: \(speechBufferCount)/\(speechContinuityWindowSize))")
         }
         
-        // Convert to target format (24kHz mono PCM16)
-        guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 24000, channels: 1, interleaved: false),
+        // Convert to target format (16kHz mono PCM16)
+        guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: false),
               let converter = AVAudioConverter(from: buffer.format, to: targetFormat) else {
             print("❌ [Realtime] Failed to create audio converter")
             
@@ -654,16 +721,21 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
         guard let channelData = convertedBuffer.int16ChannelData else { return }
         let frameCount = Int(convertedBuffer.frameLength)
         let data = Data(bytes: channelData[0], count: frameCount * MemoryLayout<Int16>.size)
+        guard !data.isEmpty else { return }
+        let durationMs = Double(frameCount) / convertedBuffer.format.sampleRate * 1000.0
+        pendingAudioDurationMs += durationMs
+        print("📡 [Realtime] Appended audio chunk: \(String(format: "%.1f", durationMs)) ms (total pending: \(String(format: "%.1f", pendingAudioDurationMs)) ms)")
         let base64 = data.base64EncodedString()
-        
+
         // Send audio to API
         let message: [String: Any] = [
             "type": "input_audio_buffer.append",
             "audio": base64
         ]
-        
+
         do {
             try await sendMessage(message)
+            hasPendingAudio = true
         } catch {
             print("❌ [Realtime] Failed to send audio: \(error)")
         }
@@ -712,18 +784,40 @@ final class OpenAIRealtimeClient: NSObject, ObservableObject {
     }
     
     private func commitAudioAndRequestResponse(trigger: String) async {
-        let commitMessage: [String: Any] = [
-            "type": "input_audio_buffer.commit"
-        ]
+        let totalDuration = pendingAudioDurationMs
         
-        do {
-            try await sendMessage(commitMessage)
-            print("✅ [Realtime] Audio buffer committed")
-        } catch {
-            print("❌ [Realtime] Failed to commit audio buffer: \(error)")
+        // Must have pending audio flag set
+        guard hasPendingAudio else {
+            print("⚠️ [Realtime] No pending audio to commit; skipping response request")
             return
         }
         
+        // Check if we have enough audio duration (minimum 100ms required by OpenAI)
+        if totalDuration < 100 {
+            print("⚠️ [Realtime] Pending audio too short (\(String(format: "%.1f", totalDuration)) ms); need at least 100ms. Skipping commit.")
+            // Reset the flag since we can't commit this
+            hasPendingAudio = false
+            pendingAudioDurationMs = 0
+            return
+        }
+        
+        let commitMessage: [String: Any] = [
+            "type": "input_audio_buffer.commit"
+        ]
+
+        do {
+            try await sendMessage(commitMessage)
+            print("✅ [Realtime] Audio buffer committed (\(String(format: "%.1f", totalDuration)) ms)")
+            pendingAudioDurationMs = 0
+            hasPendingAudio = false
+            openAIAudioBuffer = Data()
+        } catch {
+            print("❌ [Realtime] Failed to commit audio buffer: \(error)")
+            hasPendingAudio = true
+            pendingAudioDurationMs = totalDuration
+            return
+        }
+
         await requestResponseCreation(trigger: trigger)
     }
     
@@ -863,6 +957,12 @@ extension OpenAIRealtimeClient: URLSessionWebSocketDelegate {
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         print("🔌 [Realtime] WebSocket closed: \(closeCode)")
         Task { @MainActor in
+            // Cancel any pending connection continuation
+            if let continuation = connectionContinuation {
+                connectionContinuation = nil
+                continuation.resume(throwing: RealtimeError.connectionTimeout)
+            }
+            
             if shouldReconnect {
                 await handleDisconnection()
             }

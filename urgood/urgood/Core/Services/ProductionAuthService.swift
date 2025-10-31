@@ -43,7 +43,6 @@ final class ProductionAuthService: ObservableObject, AuthServiceProtocol {
     enum AuthProvider: String, CaseIterable {
         case apple = "apple.com"
         case email = "password"
-        case google = "google.com"
     }
     
     init() {
@@ -497,8 +496,6 @@ final class ProductionAuthService: ObservableObject, AuthServiceProtocol {
             switch providerID {
             case AuthProvider.apple.rawValue:
                 return .apple
-            case AuthProvider.google.rawValue:
-                return .google
             default:
                 return .email
             }

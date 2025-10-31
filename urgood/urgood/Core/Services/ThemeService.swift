@@ -13,7 +13,7 @@ class ThemeService: ObservableObject {
     @Published var colorScheme: ColorScheme = .light
     @Published var isDarkMode: Bool = false
     @Published var isSystemTheme: Bool = true
-    @Published var mentalHealthTheme: MentalHealthTheme = .calming
+    @Published var mentalHealthTheme: MentalHealthTheme = .energizing
     @Published var accessibilityEnhanced: Bool = false
     
     // MARK: - Private Properties
@@ -238,6 +238,8 @@ class ThemeService: ObservableObject {
             colorScheme = systemColorScheme == .dark ? .dark : .light
             isDarkMode = systemColorScheme == .dark
         }
+
+        applyColorSchemeToWindows()
     }
     
     private func handleAccessibilityChange(_ settings: AccessibilitySettings) {
@@ -275,6 +277,25 @@ class ThemeService: ObservableObject {
     
     private func saveAccessibilityEnhanced() {
         userDefaults.set(accessibilityEnhanced, forKey: UserDefaultsKeys.accessibilityEnhanced)
+    }
+
+    private func applyColorSchemeToWindows() {
+        let interfaceStyle: UIUserInterfaceStyle
+        switch currentTheme {
+        case .light:
+            interfaceStyle = .light
+        case .dark:
+            interfaceStyle = .dark
+        case .system:
+            interfaceStyle = .unspecified
+        }
+
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.overrideUserInterfaceStyle = interfaceStyle
+            }
+        }
     }
     
     // MARK: - Color Definitions
@@ -321,7 +342,7 @@ class ThemeService: ObservableObject {
     
     private func getEnergizingColors() -> MentalHealthColors {
         return MentalHealthColors(
-            accent: Color(red: 1.0, green: 0.6, blue: 0.2),
+            accent: Color(red: 1.0, green: 0.73, blue: 0.59),
             backgroundTint: ColorComponents(red: 1.0, green: 0.98, blue: 0.95),
             success: Color(red: 0.2, green: 0.8, blue: 0.2),
             warning: Color(red: 1.0, green: 0.7, blue: 0.0),

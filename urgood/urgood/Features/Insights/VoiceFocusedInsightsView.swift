@@ -4,6 +4,7 @@ struct VoiceFocusedInsightsView: View {
     private let container: DIContainer
     @StateObject private var viewModel: InsightsViewModel
     @StateObject private var streaksViewModel: StreaksViewModel
+    @ObservedObject private var themeService: ThemeService
     @State private var showVoiceChat = false
     @State private var selectedTimeframe: TimeFrame = .week
     @State private var showingMoodPicker = false
@@ -55,6 +56,7 @@ struct VoiceFocusedInsightsView: View {
             billingService: container.billingService,
             authService: container.authService
         ))
+        _themeService = ObservedObject(wrappedValue: container.themeService)
     }
     
     var body: some View {
@@ -71,7 +73,7 @@ struct VoiceFocusedInsightsView: View {
             .padding(.bottom, 100)
         }
         .background(
-            Color.background
+            themeService.backgroundColor
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         )
@@ -156,16 +158,16 @@ struct VoiceFocusedInsightsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your Journey")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primary)
                     
                     if let name = viewModel.weeklyRecap?.insights.first {
                         Text(name)
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.primary)
                     } else {
                     Text("Insights from your voice sessions with UrGood (\"your good\")")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.primary)
                     }
                 }
                 
@@ -180,7 +182,7 @@ struct VoiceFocusedInsightsView: View {
                         .frame(width: 44, height: 44)
                         .background(
                             Circle()
-                                .fill(Color.brandPrimary)
+                                .fill(Color(red: 0.30, green: 0.65, blue: 1.0))
                         )
                 }
                 .buttonStyle(.plain)
@@ -196,12 +198,12 @@ struct VoiceFocusedInsightsView: View {
                     }) {
                         Text(timeframe.rawValue)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(selectedTimeframe == timeframe ? .white : .textSecondary)
+                            .foregroundColor(selectedTimeframe == timeframe ? .white : .primary)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(selectedTimeframe == timeframe ? Color.brandPrimary : Color.clear)
+                                    .fill(selectedTimeframe == timeframe ? Color(red: 0.30, green: 0.65, blue: 1.0) : Color.clear)
                             )
                     }
                     .buttonStyle(.plain)
@@ -220,7 +222,7 @@ struct VoiceFocusedInsightsView: View {
             HStack {
                 Text("Voice Sessions")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
             }
@@ -258,7 +260,7 @@ struct VoiceFocusedInsightsView: View {
             HStack {
                 Text("How are you feeling?")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -266,7 +268,7 @@ struct VoiceFocusedInsightsView: View {
                     showingMoodPicker = true
                 }
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.brandPrimary)
+                .foregroundColor(.primary)
                 .buttonStyle(.plain)
             }
             
@@ -281,7 +283,7 @@ struct VoiceFocusedInsightsView: View {
                             
                             Text(moodLabel(for: mood))
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.primary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -302,7 +304,7 @@ struct VoiceFocusedInsightsView: View {
             if viewModel.hasCheckedInToday {
                 Text("Nice work logging a mood today. Keep the streak strong! 🔥")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -313,7 +315,7 @@ struct VoiceFocusedInsightsView: View {
             HStack {
                 Text("Your Progress")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -322,7 +324,7 @@ struct VoiceFocusedInsightsView: View {
                         viewModel.upgradeToPremium()
                     }
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.brandPrimary)
+                    .foregroundColor(.primary)
                     .buttonStyle(.plain)
                 }
             }
@@ -373,7 +375,7 @@ struct VoiceFocusedInsightsView: View {
             HStack {
                 Text("Recent Sessions")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
@@ -382,7 +384,7 @@ struct VoiceFocusedInsightsView: View {
                 }) {
                     Text("Start New")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.brandPrimary)
+                        .foregroundColor(.primary)
                 }
                 .buttonStyle(.plain)
             }
@@ -391,14 +393,14 @@ struct VoiceFocusedInsightsView: View {
                 VStack(spacing: 12) {
                     Text("Start your first voice session to see insights ✨")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
                     
                     Button("Log a mood to begin") {
                         showingMoodPicker = true
                     }
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.brandPrimary)
+                    .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(24)
@@ -517,16 +519,16 @@ struct InsightsStatCard: View {
             
             Text(value)
                 .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primary)
             
             VStack(spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.primary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -554,11 +556,11 @@ struct ProgressInsightCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Text(description)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
                 
                 GeometryReader { geometry in
@@ -579,7 +581,7 @@ struct ProgressInsightCard: View {
             
             Text("\(Int(min(max(progress, 0), 1) * 100))%")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(color)
+                .foregroundColor(.primary)
         }
         .padding(16)
         .background(
@@ -617,19 +619,19 @@ struct VoiceSessionCard: View {
             HStack(spacing: 16) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.brandPrimary.opacity(0.1))
+                        .fill(Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.1))
                         .frame(width: 48, height: 48)
                     
                     Image(systemName: "waveform")
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.brandPrimary)
+                        .foregroundColor(Color(red: 1.0, green: 0.73, blue: 0.59))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(session.title)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primary)
                             .lineLimit(1)
                         
                         Spacer()
@@ -640,34 +642,34 @@ struct VoiceSessionCard: View {
                     
                     Text(Self.relativeFormatter.localizedString(for: session.date, relativeTo: Date()))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textTertiary)
+                        .foregroundColor(.primary)
                     
                     Text(session.insights ?? session.preview)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.brandPrimary)
+                        .foregroundColor(.primary)
                         .lineLimit(1)
                     
                     HStack(spacing: 8) {
                         Image(systemName: "ellipsis.message.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(.textTertiary)
+                            .foregroundColor(.primary)
                         
                         Text("\(session.messageCount) messages")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textTertiary)
+                            .foregroundColor(.primary)
                         
                         if totalMessages > 0 {
                             let share = max(Double(session.messageCount) / Double(totalMessages), 0)
                             Text("\(Int(share * 100))% of timeframe")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.textTertiary)
+                                .foregroundColor(.primary)
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textTertiary)
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -677,7 +679,7 @@ struct VoiceSessionCard: View {
                     .fill(Color.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.brandPrimary.opacity(0.1), lineWidth: 1)
+                            .stroke(Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.1), lineWidth: 1)
                     )
             )
         }

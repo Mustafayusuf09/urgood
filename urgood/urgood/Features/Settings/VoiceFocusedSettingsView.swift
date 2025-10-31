@@ -4,6 +4,7 @@ struct VoiceFocusedSettingsView: View {
     private let container: DIContainer
     @StateObject private var viewModel: SettingsViewModel
     @ObservedObject private var hapticService: HapticFeedbackService
+    @ObservedObject private var themeService: ThemeService
     @State private var voiceSpeed: Double
     @State private var voiceVolume: Double
     @State private var selectedVoice: ElevenLabsVoice
@@ -21,6 +22,7 @@ struct VoiceFocusedSettingsView: View {
             notificationService: container.notificationService
         ))
         _hapticService = ObservedObject(wrappedValue: container.hapticService)
+        _themeService = ObservedObject(wrappedValue: container.themeService)
         _voiceSpeed = State(initialValue: UserDefaults.standard.voiceSpeed)
         _voiceVolume = State(initialValue: UserDefaults.standard.voiceVolume)
         _selectedVoice = State(initialValue: UserDefaults.standard.selectedVoice)
@@ -48,7 +50,7 @@ struct VoiceFocusedSettingsView: View {
             .padding(.bottom, 80)
         }
         .background(
-            Color.background
+            themeService.backgroundColor
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         )
@@ -122,11 +124,11 @@ struct VoiceFocusedSettingsView: View {
                 VStack(spacing: 4) {
                     Text(displayName)
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primary)
                     
                     Text(greetingSubtitle)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.primary)
                 }
             }
         }
@@ -144,18 +146,18 @@ struct VoiceFocusedSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("UrGood Voice (\"your good\")")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.primary)
                             
                             Text("\(selectedVoice.displayName) - \(selectedVoice.description)")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.primary)
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textTertiary)
+                            .foregroundColor(.primary)
                     }
                 }
                 .buttonStyle(.plain)
@@ -166,17 +168,17 @@ struct VoiceFocusedSettingsView: View {
                     HStack {
                         Text("Speaking Speed")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         Text("\(voiceSpeed, specifier: "%.1f")x")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.primary)
                     }
                     
                     Slider(value: $voiceSpeed, in: 0.5...2.0, step: 0.1)
-                        .accentColor(.brandPrimary)
+                        .accentColor(Color(red: 0.30, green: 0.65, blue: 1.0))
                         .onChange(of: voiceSpeed) { newValue in
                             UserDefaults.standard.voiceSpeed = newValue
                         }
@@ -188,17 +190,17 @@ struct VoiceFocusedSettingsView: View {
                     HStack {
                         Text("Volume")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primary)
                         
                         Spacer()
                         
                         Text("\(Int(voiceVolume * 100))%")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.primary)
                     }
                     
                     Slider(value: $voiceVolume, in: 0.0...1.0)
-                        .accentColor(.brandPrimary)
+                        .accentColor(Color(red: 0.30, green: 0.65, blue: 1.0))
                         .onChange(of: voiceVolume) { newValue in
                             UserDefaults.standard.voiceVolume = newValue
                             container.audioPlaybackService.setVolume(Float(newValue))
@@ -225,6 +227,10 @@ struct VoiceFocusedSettingsView: View {
     private var appPreferences: some View {
         VoiceSettingsSection(title: "Preferences", icon: "gear") {
             VStack(spacing: 16) {
+                appearancePreferences
+
+                Divider()
+
                 SettingsToggle(
                     title: "Daily Reminders",
                     subtitle: "Get gentle reminders to check in with UrGood",
@@ -241,6 +247,36 @@ struct VoiceFocusedSettingsView: View {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         openURL(url)
                     }
+                }
+            }
+        }
+    }
+
+    private var appearancePreferences: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Appearance")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.primary)
+
+            Text("Choose how UrGood looks across the app.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.primary.opacity(0.75))
+
+            HStack(spacing: 12) {
+                ThemeModeButton(
+                    title: "Light",
+                    icon: "sun.max.fill",
+                    isSelected: isThemeSelected(.light)
+                ) {
+                    applyTheme(.light)
+                }
+
+                ThemeModeButton(
+                    title: "Dark",
+                    icon: "moon.fill",
+                    isSelected: isThemeSelected(.dark)
+                ) {
+                    applyTheme(.dark)
                 }
             }
         }
@@ -342,6 +378,21 @@ struct VoiceFocusedSettingsView: View {
             }
         )
     }
+
+    private func isThemeSelected(_ theme: AppTheme) -> Bool {
+        if themeService.currentTheme == theme {
+            return true
+        }
+        if themeService.currentTheme == .system {
+            return theme == .dark ? themeService.isDarkMode : !themeService.isDarkMode
+        }
+        return false
+    }
+
+    private func applyTheme(_ theme: AppTheme) {
+        guard themeService.currentTheme != theme else { return }
+        themeService.setTheme(theme)
+    }
     
     private var displayName: String {
         if let name = viewModel.user.displayName, !name.isEmpty {
@@ -395,11 +446,11 @@ struct VoiceSettingsSection<Content: View>: View {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.brandPrimary)
+                    .foregroundColor(Color(red: 0.30, green: 0.65, blue: 1.0))
                 
                 Text(title)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
             }
             
             content
@@ -410,7 +461,7 @@ struct VoiceSettingsSection<Content: View>: View {
                 .fill(Color.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.brandPrimary.opacity(0.1), lineWidth: 1)
+                        .stroke(Color(red: 0.30, green: 0.65, blue: 1.0).opacity(0.1), lineWidth: 1)
                 )
         )
     }
@@ -429,18 +480,18 @@ struct VoiceSettingsRow: View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isDestructive ? .error : .brandPrimary)
+                    .foregroundColor(isDestructive ? .error : Color(red: 0.30, green: 0.65, blue: 1.0))
                     .frame(width: 24)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(isDestructive ? .error : .textPrimary)
+                        .foregroundColor(isDestructive ? .error : .primary)
                         .lineLimit(1)
                     
                     Text(subtitle)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.primary)
                         .lineLimit(2)
                 }
                 
@@ -449,7 +500,7 @@ struct VoiceSettingsRow: View {
                 if !isDestructive {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textTertiary)
+                        .foregroundColor(.primary)
                 }
             }
         }
@@ -462,24 +513,61 @@ struct SettingsToggle: View {
     let title: String
     let subtitle: String
     @Binding var isOn: Bool
-    
+
     var body: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primary)
                 
                 Text(subtitle)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.primary)
             }
             
             Spacer()
             
             Toggle("", isOn: $isOn)
-                .tint(.brandPrimary)
+                .tint(Color(red: 0.30, green: 0.65, blue: 1.0))
         }
+    }
+}
+
+// MARK: - Theme Mode Button
+struct ThemeModeButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .primary)
+                    .frame(height: 24)
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : .primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color(red: 0.30, green: 0.65, blue: 1.0) : Color.surfaceSecondary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        isSelected ? Color(red: 0.30, green: 0.65, blue: 1.0) : Color(red: 0.30, green: 0.65, blue: 1.0).opacity(0.15),
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

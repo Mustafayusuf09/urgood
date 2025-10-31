@@ -49,7 +49,6 @@ class SettingsViewModel: ObservableObject {
     func clearAllData() {
         localStore.clearAllData()
         user = localStore.user
-        print("🧹 All data cleared for fresh demo")
     }
     
     func unlockPremium() {
@@ -101,9 +100,7 @@ class SettingsViewModel: ObservableObject {
     }
     
     func signOut() async {
-        // Sign out the user using the authentication service
         try? await authService.signOut()
-        print("User signed out successfully")
     }
 }
 

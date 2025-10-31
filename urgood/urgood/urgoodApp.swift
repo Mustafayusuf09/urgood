@@ -14,12 +14,7 @@ struct urgoodApp: App {
     
     var body: some Scene {
         WindowGroup {
-            // Using MainTabView with modern voice-first navigation
             ContentView()
-            
-            // Alternative options:
-            // DiagnosticView() - For testing
-            // SafeContentView() - Legacy side menu version
         }
     }
 }

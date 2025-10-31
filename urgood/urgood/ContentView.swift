@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var hasMigrated = false
     
     var body: some View {
-        Group {
+        ZStack {
             // Use unified auth service for authentication state
             if container.unifiedAuthService.isAuthenticated {
                 // Main app content with hamburger menu navigation
@@ -22,6 +22,11 @@ struct ContentView: View {
                     .environmentObject(router)
                     .withAppSession(container.appSession) // Inject AppSession
                     .themeEnvironment()
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .trailing)),
+                        removal: .opacity.combined(with: .move(edge: .leading))
+                    ))
+                    .zIndex(container.unifiedAuthService.isAuthenticated ? 1 : 0)
                     .task {
                         // Run migration on first authenticated launch
                         if !hasMigrated {
@@ -55,13 +60,27 @@ struct ContentView: View {
                     }
             } else {
                 // Show authentication or first run flow
-                if !container.localStore.hasCompletedFirstRun {
-                    FirstRunFlowView(container: container)
-                        .interactiveDismissDisabled()
-                } else {
-                    AuthenticationView(container: container)
-                        .interactiveDismissDisabled()
+                Group {
+                    if !container.localStore.hasCompletedFirstRun {
+                        FirstRunFlowView(container: container)
+                            .interactiveDismissDisabled()
+                    } else {
+                        AuthenticationView(container: container)
+                            .interactiveDismissDisabled()
+                    }
                 }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .leading)),
+                    removal: .opacity.combined(with: .move(edge: .trailing))
+                ))
+                .zIndex(container.unifiedAuthService.isAuthenticated ? 0 : 1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: container.unifiedAuthService.isAuthenticated)
+        .onChange(of: container.unifiedAuthService.isAuthenticated) { isAuthenticated in
+            // Trigger haptic feedback on successful authentication
+            if isAuthenticated {
+                container.hapticService.playNotification(.success)
             }
         }
         .onAppear {
@@ -76,12 +95,9 @@ struct ContentView: View {
         do {
             let needsMigration = try await container.migrationService.needsMigration(uid: uid)
             if needsMigration {
-                print("🔄 Starting data migration for user: \(uid)")
                 try await container.migrationService.migrateUserData(uid: uid)
-                print("✅ Migration completed successfully")
             }
         } catch {
-            print("❌ Migration failed: \(error.localizedDescription)")
             // Migration failure is logged but doesn't block the app
         }
     }

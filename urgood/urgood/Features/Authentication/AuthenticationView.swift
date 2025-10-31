@@ -1,6 +1,4 @@
 import SwiftUI
-import Combine
-import AuthenticationServices
 
 struct AuthenticationView: View {
     let container: DIContainer
@@ -16,17 +14,8 @@ struct AuthenticationView: View {
     
     var body: some View {
         ZStack {
-            // Beautiful gradient background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.1, blue: 0.2),   // Dark blue
-                    Color(red: 0.1, green: 0.2, blue: 0.4),    // Medium dark blue
-                    Color(red: 0.15, green: 0.3, blue: 0.6)    // Medium blue
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color.white
+                .ignoresSafeArea()
             
             VStack(spacing: 40) {
                 Spacer()
@@ -35,12 +24,11 @@ struct AuthenticationView: View {
                 VStack(spacing: 20) {
                     Text("urgood")
                         .font(.system(size: 48, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .foregroundColor(.primary)
                     
                     Text("Join thousands of people building better habits")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
@@ -49,18 +37,23 @@ struct AuthenticationView: View {
                 
                 // Authentication options
                 VStack(spacing: 16) {
-                    // Apple Sign In
-                    SignInWithAppleButton(
-                        onRequest: { request in
-                            request.requestedScopes = [.fullName, .email]
-                        },
-                        onCompletion: { result in
-                            handleAppleSignIn(result)
+                    // Apple Sign In - Custom button that calls the auth service directly
+                    Button(action: {
+                        handleAppleSignIn()
+                    }) {
+                        HStack {
+                            Image(systemName: "applelogo")
+                                .font(.title3)
+                            Text("Sign in with Apple")
+                                .font(.title3)
+                                .fontWeight(.semibold)
                         }
-                    )
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 50)
-                    .cornerRadius(12)
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                    }
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading)
                     
                     // Email Sign Up
@@ -72,15 +65,9 @@ struct AuthenticationView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color(red: 1.0, green: 0.73, blue: 0.59))
                     .cornerRadius(12)
-                    .shadow(color: .blue.opacity(0.4), radius: 10, x: 0, y: 5)
+                    .shadow(color: Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.4), radius: 10, x: 0, y: 5)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading)
                     
                     // Sign In Link
@@ -88,7 +75,7 @@ struct AuthenticationView: View {
                         showSignIn = true
                     }
                     .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(.secondary)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading)
                 }
                 .padding(.horizontal, 40)
@@ -99,18 +86,18 @@ struct AuthenticationView: View {
             
             // Loading overlay - use local loading state for better control
             if isLocalLoading || container.unifiedAuthService.isLoading {
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.2)
                     .ignoresSafeArea()
                 
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.5)
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 1.0, green: 0.73, blue: 0.59)))
                     
                     Text("Signing you in...")
                         .font(.title3)
                         .fontWeight(.medium)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                 }
             }
         }
@@ -131,15 +118,23 @@ struct AuthenticationView: View {
         } message: {
             Text(errorMessage)
         }
+        .onChange(of: container.unifiedAuthService.isAuthenticated) { isAuthenticated in
+            // Close any open sheets when authentication succeeds
+            if isAuthenticated {
+                showSignIn = false
+                showSignUp = false
+                // Dismiss will be handled by ContentView's transition
+            }
+        }
         .onReceive(container.$isAuthenticationStateChanged) { _ in
+            // Also listen to container's auth state change signal
             guard container.unifiedAuthService.isAuthenticated else { return }
             showSignIn = false
             showSignUp = false
-            dismiss()
         }
     }
     
-    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+    private func handleAppleSignIn() {
         Task {
             await MainActor.run {
                 isLocalLoading = true
@@ -149,7 +144,6 @@ struct AuthenticationView: View {
                 try await container.unifiedAuthService.signInWithApple()
                 await MainActor.run {
                     isLocalLoading = false
-                    dismiss()
                 }
             } catch {
                 await MainActor.run {
@@ -192,26 +186,19 @@ struct EmailSignUpView: View {
         NavigationView {
             ZStack {
                 // Background
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.05, green: 0.1, blue: 0.2),
-                        Color(red: 0.1, green: 0.2, blue: 0.4)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color.white
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 30) {
                     // Header
                     VStack(spacing: 16) {
                         Text("Create Account")
                             .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                         
                         Text("Start your journey to better habits")
                             .font(.system(size: 16))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 40)
@@ -221,7 +208,7 @@ struct EmailSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Name")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.primary)
                             
                             TextField("Enter your name", text: $name)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -232,7 +219,7 @@ struct EmailSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Email")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.primary)
                             
                             TextField("Enter your email", text: $email)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -244,7 +231,7 @@ struct EmailSignUpView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Password")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.primary)
                             
                             SecureField("Enter your password", text: $password)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -266,15 +253,9 @@ struct EmailSignUpView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color(red: 1.0, green: 0.73, blue: 0.59))
                     .cornerRadius(12)
-                    .shadow(color: .blue.opacity(0.4), radius: 10, x: 0, y: 5)
+                    .shadow(color: Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.4), radius: 10, x: 0, y: 5)
                     .padding(.horizontal, 40)
                     .padding(.bottom, 20)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading || email.isEmpty || password.isEmpty || name.isEmpty)
@@ -286,7 +267,7 @@ struct EmailSignUpView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading)
                 }
             }
@@ -333,26 +314,19 @@ struct EmailSignInView: View {
         NavigationView {
             ZStack {
                 // Background
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.05, green: 0.1, blue: 0.2),
-                        Color(red: 0.1, green: 0.2, blue: 0.4)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                Color.white
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 30) {
                     // Header
                     VStack(spacing: 16) {
                         Text("Welcome Back")
                             .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                         
                         Text("Sign in to continue your journey")
                             .font(.system(size: 16))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 40)
@@ -362,7 +336,7 @@ struct EmailSignInView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Email")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.primary)
                             
                             TextField("Enter your email", text: $email)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -374,7 +348,7 @@ struct EmailSignInView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Password")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(.primary)
                             
                             SecureField("Enter your password", text: $password)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -396,15 +370,9 @@ struct EmailSignInView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.blue.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(Color(red: 1.0, green: 0.73, blue: 0.59))
                     .cornerRadius(12)
-                    .shadow(color: .blue.opacity(0.4), radius: 10, x: 0, y: 5)
+                    .shadow(color: Color(red: 1.0, green: 0.73, blue: 0.59).opacity(0.4), radius: 10, x: 0, y: 5)
                     .padding(.horizontal, 40)
                     .padding(.bottom, 20)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading || email.isEmpty || password.isEmpty)
@@ -416,7 +384,7 @@ struct EmailSignInView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                     .disabled(isLocalLoading || container.unifiedAuthService.isLoading)
                 }
             }

@@ -14,7 +14,7 @@ enum ElevenLabsVoice: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .nova:
-            return "UrGood"
+            return "Murph"
         case .lyra:
             return "Lyra"
         case .kai:

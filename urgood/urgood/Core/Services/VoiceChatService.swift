@@ -145,6 +145,7 @@ final class VoiceChatService: ObservableObject {
         
         if isListening {
             client.stopListening()
+            client.manualCommit()
         } else {
             guard ensureMessageQuotaAvailable() else {
                 stopVoiceChat()
@@ -157,6 +158,10 @@ final class VoiceChatService: ObservableObject {
     
     func clearError() {
         error = nil
+    }
+    
+    func manualCommit() {
+        realtimeClient?.manualCommit()
     }
     
     // MARK: - Private Methods
@@ -234,6 +239,11 @@ final class VoiceChatService: ObservableObject {
     }
     
     private func ensureMessageQuotaAvailable() -> Bool {
+        #if DEBUG
+        // Development bypass - unlimited for testing
+        if error != nil { error = nil }
+        return true
+        #else
         if billingService.isSubscribed() {
             if error != nil { error = nil }
             return true
@@ -248,6 +258,7 @@ final class VoiceChatService: ObservableObject {
             showPaywall = true
         }
         return false
+        #endif
     }
     
     private func quotaAppended(to base: String) -> String {
@@ -256,9 +267,13 @@ final class VoiceChatService: ObservableObject {
     }
     
     private func quotaSuffix() -> String? {
+        #if DEBUG
+        return nil
+        #else
         guard !billingService.isSubscribed() else { return nil }
         let remaining = chatService.getRemainingMessages()
         return "(\(remaining) left today)"
+        #endif
     }
     
     private func recordUserTranscript(_ text: String) {
